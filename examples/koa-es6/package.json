@@ -1,0 +1,25 @@
+{
+  "name": "isoproxy-koa-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "NODE_PATH=../../src/ browserify -d -e src/client -t [ babelify --stage 0 --sourceMapRelative . ] -o public/js/app.js",
+    "serve": "NODE_PATH=../../src/ babel-node --stage 0 src/server",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Shintaro Seki <s2pch.luck@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "koa": "^0.20.0",
+    "koa-bodyparser": "^2.0.0",
+    "koa-logger": "^1.2.2",
+    "koa-router": "^4.3.2",
+    "koa-static": "^1.4.9"
+  },
+  "devDependencies": {
+    "babelify": "^6.1.0",
+    "browserify": "^10.2.0"
+  },
+  "private": true
+}
