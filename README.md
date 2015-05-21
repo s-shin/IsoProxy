@@ -3,6 +3,8 @@
 IsoProxy is a simple proxy inspired [Fetchr](https://github.com/yahoo/fetchr),
 and the motivation is the same as in Fetchr.
 
+[![Build Status](https://travis-ci.org/s-shin/isoproxy.svg)](https://travis-ci.org/s-shin/isoproxy)
+
 ## Features
 
 * Isolation from a web application framework by adopting JSONRPC.
