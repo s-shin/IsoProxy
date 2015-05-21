@@ -1,6 +1,6 @@
 {
   "name": "isoproxy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "General isomorphic API proxy with JSONRPC.",
   "keywords": [
     "isomorphic",
@@ -12,7 +12,7 @@
   },
   "main": "lib/isoproxy.js",
   "scripts": {
-    "test": "mocha --compilers js:espower-babel/guess spec/**/*-spec.js",
+    "test": "mocha --compilers js:espower-babel/guess test/**/*-spec.js",
     "build": "babel src --out-dir lib --stage 0 --optional runtime"
   },
   "author": "Shintaro Seki <s2pch.luck@gmail.com>",
@@ -21,7 +21,7 @@
     "babel": "^5.4.3",
     "babel-eslint": "^3.1.1",
     "eslint": "^0.21.0",
-    "espower-babel": "^3.1.0",
+    "espower-babel": "^3.1.1",
     "mocha": "^2.2.5",
     "power-assert": "^0.11.0"
   },
