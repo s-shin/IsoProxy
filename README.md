@@ -1,9 +1,13 @@
-# IsoProxy - General Isomorphic API Proxy with JSONRPC.
+# IsoProxy - General Isomorphic API Proxy
 
 IsoProxy is a simple proxy inspired [Fetchr](https://github.com/yahoo/fetchr),
 and the motivation is the same as in Fetchr.
 
 [![Build Status](https://travis-ci.org/s-shin/isoproxy.svg)](https://travis-ci.org/s-shin/isoproxy)
+[![npm version](https://badge.fury.io/js/isoproxy.svg)](http://badge.fury.io/js/isoproxy)
+[![Dependency Status](https://david-dm.org/s-shin/isoproxy.svg)](https://david-dm.org/s-shin/isoproxy)
+[![devDependency Status](https://david-dm.org/s-shin/isoproxy/dev-status.svg)](https://david-dm.org/s-shin/isoproxy#info=devDependencies)
+[![license](https://img.shields.io/github/license/s-shin/isoproxy.svg)](https://github.com/s-shin/isoproxy/blob/master/LICENSE)
 
 ## Features
 
@@ -16,7 +20,7 @@ and the motivation is the same as in Fetchr.
 npm install isoproxy --save
 ```
 
-## Example
+## Setup
 
 Define isomorphic API:
 
@@ -85,7 +89,11 @@ proxy.ns("math").api.add(1, 2).then(function(result) {
 });
 ```
 
-See more examples:
+## Examples
 
 * [ES5, express, and browserify](examples/express/)
 * [ES6, koa, and babelify](examples/koa-es6/)
+
+## License
+
+The MIT License.
