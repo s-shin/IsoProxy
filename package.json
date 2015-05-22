@@ -1,6 +1,6 @@
 {
   "name": "isoproxy",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "General isomorphic API proxy with JSONRPC.",
   "keywords": [
     "isomorphic",
@@ -31,9 +31,10 @@
   },
   "files": [
     "README.md",
+    "LICENSE",
     "package.json",
     "src",
-    "dist"
+    "lib"
   ],
   "engines": {
     "node": "0.11.x",
