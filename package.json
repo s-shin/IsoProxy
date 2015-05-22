@@ -1,6 +1,6 @@
 {
   "name": "isoproxy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "General isomorphic API proxy with JSONRPC.",
   "keywords": [
     "isomorphic",
