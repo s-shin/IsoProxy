@@ -1,0 +1,1172 @@
+[
+  {
+    "kind": "file",
+    "static": true,
+    "variation": null,
+    "name": "src/fetch.js",
+    "memberof": null,
+    "longname": "src/fetch.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 5,
+    "content": "/**\n * WHATWG fetch polyfill for client side.\n */\n\nvar fetch;\n\nif (typeof window !== \"undefined\") {\n  if (!window.fetch) {\n    require(\"whatwg-fetch\");\n  }\n  fetch = window.fetch;\n}\n\nexport default fetch;\n"
+  },
+  {
+    "kind": "file",
+    "static": true,
+    "variation": null,
+    "name": "src/isoproxy.js",
+    "memberof": null,
+    "longname": "src/isoproxy.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 1,
+    "content": "import _ from \"lodash\";\nimport jsonrpc from \"./jsonrpc\";\nimport fetch from \"./fetch\";\n\n/**\n * Isomorphic API Proxy\n */\nexport default class IsoProxy {\n\n  /**\n   * @param {Object} opts\n   * @param {string} opts.root Root url path, that is beginning with \"/\" and NOT end with \"/\".\n   * @param {boolean} opts.isServer Server mode or not.\n   */\n  constructor(opts = {}) {\n    const {root = \"\", isServer = true} = opts;\n    /** @private */\n    this.root = root;\n    /** @private */\n    this.isServer = isServer;\n    /** @private */\n    this.interfaces = {};\n    /** @private */\n    this.implementations = {};\n    /**\n     * @public\n     * @type {Object}\n     * @example\n     * {math: {add: function() { isomorphic_blackbox(); }}}\n     */\n    this.api = {};\n    /**\n     * @public\n     * @type {Object}\n     * @example\n     * {\"/api/math\": function processJsonrpcRequest(jsonrpcRequest) { ... }}\n     */\n    this.routes = {};\n  }\n\n  /**\n   * @public\n   * @param {Object} interfaces\n   */\n  setInterfaces(interfaces) {\n    this.interfaces = interfaces;\n    this.updateApi();\n    this.updateRoutes();\n  }\n\n  /**\n   * @public\n   * @param {Object} implementations\n   */\n  setImplementations(implementations) {\n    if (!this.isServer) {\n      // Implementations are required only in server mode.\n      return;\n    }\n    this.implementations = implementations;\n    this.updateApi();\n    this.updateRoutes();\n  }\n\n  /**\n   * @access private\n   */\n  updateApi() {\n    return this.isServer ? this.updateServerApi() : this.updateClientApi();\n  }\n\n  /**\n   * @private\n   */\n  preprocessMethodDefinitions(methodDefinitions) {\n    if (_.isArray(methodDefinitions)) {\n      // [\"add\", \"sub\"] => {add: {}, sub: {}}\n      methodDefinitions = _.reduce(methodDefinitions, (r, methodName) => {\n        r[methodName] = {}; // no options\n        return r;\n      }, {});\n    }\n    return methodDefinitions;\n  }\n\n  /**\n   * @private\n   */\n  updateServerApi() {\n    this.api = {};\n    _.forEach(this.interfaces, (methodDefinitions, ns) => {\n      methodDefinitions = this.preprocessMethodDefinitions(methodDefinitions);\n      this.api[ns] = {};\n      _.forEach(methodDefinitions, (methodOpts, methodName) => {\n        const impl = _.get(this.implementations, [ns, methodName]);\n        if (impl) {\n          // wrap with Promise.\n          this.api[ns][methodName] = (...args) => {\n            return Promise.resolve(impl(...args));\n          };\n        } else {\n          // mock method.\n          this.api[ns][methodName] = (...args) => {\n            const argsStr = _.map(args, (p) => p.toString()).join(\", \");\n            throw new Error(`${ns}.${methodName}(${argsStr}) is called but is not implemented.`);\n          };\n        }\n      });\n    });\n  }\n\n  /**\n   * @private\n   */\n  updateClientApi() {\n    this.api = {};\n    _.forEach(this.interfaces, (methodDefinitions, ns) => {\n      methodDefinitions = this.preprocessMethodDefinitions(methodDefinitions);\n      this.api[ns] = {};\n      _.forEach(methodDefinitions, (methodOpts, methodName) => {\n        this.api[ns][methodName] = (...params) => {\n          return new Promise((resolve, reject) => {\n            // RPC\n            fetch(this.createPath(ns), {\n              method: \"post\",\n              headers: {\n                \"Accept\": \"application/json\",\n                \"Content-Type\": \"application/json\"\n              },\n              body: JSON.stringify(jsonrpc.createRequest(methodName, params))\n            })\n            .then((response) => {\n              if (!response.ok) {\n                reject(response.error());\n                return null;\n              }\n              return response.json();\n            })\n            .then((jsonrpcResponse) => {\n              if (jsonrpcResponse.error) {\n                return reject(jsonrpcResponse.error);\n              }\n              resolve(jsonrpcResponse.result);\n            })\n            .catch((error) => {\n              reject(error);\n            });\n          });\n        };\n      });\n    });\n  }\n\n  /**\n   * @private\n   */\n  updateRoutes() {\n    _.forEach(this.implementations, (methods, ns) => {\n      this.routes[this.createPath(ns)] = (jsonrpcRequest) => {\n        return new Promise((resolve) => {\n          Promise\n            .resolve(methods[jsonrpcRequest.method](...jsonrpcRequest.params))\n            .then((result) => {\n              resolve(jsonrpc.createResponse(null, result));\n            })\n            .catch((error) => {\n              resolve(jsonrpc.createResponse(error));\n            });\n        });\n      };\n    });\n  }\n\n  /**\n   * @private\n   */\n  createPath(ns) {\n    return `${this.root}/${ns}`;\n  }\n\n}\n"
+  },
+  {
+    "kind": "class",
+    "static": true,
+    "variation": null,
+    "name": "IsoProxy",
+    "memberof": "src/isoproxy.js",
+    "longname": "src/isoproxy.js~IsoProxy",
+    "access": null,
+    "export": true,
+    "importPath": "isoproxy/src/isoproxy.js",
+    "importStyle": "IsoProxy",
+    "description": "Isomorphic API Proxy",
+    "lineNumber": 8,
+    "interface": false
+  },
+  {
+    "kind": "constructor",
+    "static": false,
+    "variation": null,
+    "name": "constructor",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#constructor",
+    "access": null,
+    "description": null,
+    "lineNumber": 15,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "opts",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "opts.root",
+        "description": "Root url path, that is beginning with \"/\" and NOT end with \"/\"."
+      },
+      {
+        "nullable": null,
+        "types": [
+          "boolean"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "opts.isServer",
+        "description": "Server mode or not."
+      }
+    ],
+    "generator": false
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "root",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#root",
+    "access": "private",
+    "description": null,
+    "lineNumber": 18,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "isServer",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#isServer",
+    "access": "private",
+    "description": null,
+    "lineNumber": 20,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "interfaces",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#interfaces",
+    "access": "private",
+    "description": null,
+    "lineNumber": 22,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "implementations",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#implementations",
+    "access": "private",
+    "description": null,
+    "lineNumber": 24,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "api",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#api",
+    "access": "public",
+    "description": null,
+    "examples": [
+      "{math: {add: function() { isomorphic_blackbox(); }}}"
+    ],
+    "lineNumber": 31,
+    "type": {
+      "nullable": null,
+      "types": [
+        "Object"
+      ],
+      "spread": false,
+      "description": null
+    }
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "routes",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#routes",
+    "access": "public",
+    "description": null,
+    "examples": [
+      "{\"/api/math\": function processJsonrpcRequest(jsonrpcRequest) { ... }}"
+    ],
+    "lineNumber": 38,
+    "type": {
+      "nullable": null,
+      "types": [
+        "Object"
+      ],
+      "spread": false,
+      "description": null
+    }
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "setInterfaces",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#setInterfaces",
+    "access": "public",
+    "description": null,
+    "lineNumber": 45,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "interfaces",
+        "description": ""
+      }
+    ],
+    "generator": false
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "interfaces",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#interfaces",
+    "access": null,
+    "description": null,
+    "lineNumber": 46,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "setImplementations",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#setImplementations",
+    "access": "public",
+    "description": null,
+    "lineNumber": 55,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "implementations",
+        "description": ""
+      }
+    ],
+    "generator": false
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "implementations",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#implementations",
+    "access": null,
+    "description": null,
+    "lineNumber": 60,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "updateApi",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#updateApi",
+    "access": "private",
+    "description": null,
+    "lineNumber": 68,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    },
+    "generator": false
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "preprocessMethodDefinitions",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#preprocessMethodDefinitions",
+    "access": "private",
+    "description": null,
+    "lineNumber": 75,
+    "params": [
+      {
+        "name": "methodDefinitions",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    },
+    "generator": false
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "updateServerApi",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#updateServerApi",
+    "access": "private",
+    "description": null,
+    "lineNumber": 89,
+    "params": [],
+    "generator": false
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "api",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#api",
+    "access": null,
+    "description": null,
+    "lineNumber": 90,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "updateClientApi",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#updateClientApi",
+    "access": "private",
+    "description": null,
+    "lineNumber": 115,
+    "params": [],
+    "generator": false
+  },
+  {
+    "kind": "member",
+    "static": false,
+    "variation": null,
+    "name": "api",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#api",
+    "access": null,
+    "description": null,
+    "lineNumber": 116,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "updateRoutes",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#updateRoutes",
+    "access": "private",
+    "description": null,
+    "lineNumber": 157,
+    "params": [],
+    "generator": false
+  },
+  {
+    "kind": "method",
+    "static": false,
+    "variation": null,
+    "name": "createPath",
+    "memberof": "src/isoproxy.js~IsoProxy",
+    "longname": "src/isoproxy.js~IsoProxy#createPath",
+    "access": "private",
+    "description": null,
+    "lineNumber": 177,
+    "params": [
+      {
+        "name": "ns",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "string"
+      ]
+    },
+    "generator": false
+  },
+  {
+    "kind": "file",
+    "static": true,
+    "variation": null,
+    "name": "src/jsonrpc.js",
+    "memberof": null,
+    "longname": "src/jsonrpc.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 5,
+    "content": "\n/**\n * Simple JSON-RPC compatible request/response creators.\n */\nconst jsonrpc = {\n\n  createRequest(name, params) {\n    return {\n      jsonrpc: \"2.0\",\n      id: 1,\n      method: name,\n      params: params\n    };\n  },\n\n  createResponse(error = null, result = null) {\n    return {\n      jsonrpc: \"2.0\",\n      id: 1,\n      result: result,\n      error: error\n    };\n  }\n\n};\n\nexport default jsonrpc;\n"
+  },
+  {
+    "kind": "variable",
+    "static": true,
+    "variation": null,
+    "name": "jsonrpc",
+    "memberof": "src/jsonrpc.js",
+    "longname": "src/jsonrpc.js~jsonrpc",
+    "access": null,
+    "export": false,
+    "importPath": "isoproxy/src/jsonrpc.js",
+    "importStyle": null,
+    "description": "Simple JSON-RPC compatible request/response creators.",
+    "lineNumber": 5,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Infinity",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Infinity",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Infinity",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "NaN",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~NaN",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "undefined",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~undefined",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "null",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/null",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~null",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Object",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Object",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "object",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~object",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Function",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Function",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "function",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~function",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Boolean",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Boolean",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "boolean",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~boolean",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Symbol",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Symbol",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Error",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Error",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "EvalError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~EvalError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "InternalError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/InternalError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~InternalError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "RangeError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~RangeError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "ReferenceError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~ReferenceError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "SyntaxError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~SyntaxError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "TypeError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~TypeError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "URIError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~URIError",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Number",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Number",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "number",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~number",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Date",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Date",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "String",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~String",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "string",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~string",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "RegExp",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~RegExp",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Int8Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Int8Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint8Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint8Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint8ClampedArray",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint8ClampedArray",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Int16Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Int16Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint16Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint16Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Int32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Int32Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Uint32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Uint32Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Float32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Float32Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Float64Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Float64Array",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Map",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Map",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Set",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Set",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "WeakMap",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~WeakMap",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "WeakSet",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~WeakSet",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "ArrayBuffer",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~ArrayBuffer",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "DataView",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~DataView",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "JSON",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~JSON",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Promise",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Promise",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Generator",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Generator",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "GeneratorFunction",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/GeneratorFunction",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~GeneratorFunction",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Reflect",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Reflect",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Proxy",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy",
+    "memberof": "BuiltinExternal/ECMAScriptExternal.js",
+    "longname": "BuiltinExternal/ECMAScriptExternal.js~Proxy",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "CanvasRenderingContext2D",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~CanvasRenderingContext2D",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "DocumentFragment",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~DocumentFragment",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Element",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Element",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~Element",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Event",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Event",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~Event",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "Node",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Node",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~Node",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "NodeList",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/NodeList",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~NodeList",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "external",
+    "static": true,
+    "variation": null,
+    "name": "XMLHttpRequest",
+    "externalLink": "https://developer.mozilla.org/en/docs/Web/API/XMLHttpRequest",
+    "memberof": "BuiltinExternal/WebAPIExternal.js",
+    "longname": "BuiltinExternal/WebAPIExternal.js~XMLHttpRequest",
+    "access": null,
+    "description": null,
+    "builtinExternal": true
+  },
+  {
+    "kind": "testFile",
+    "static": true,
+    "variation": null,
+    "name": "test/isoproxy-spec.js",
+    "memberof": null,
+    "longname": "test/isoproxy-spec.js",
+    "access": null,
+    "description": null,
+    "lineNumber": 1,
+    "content": "import assert from \"power-assert\";\nimport co from \"co\";\nimport IsoProxy from \"../lib/isoproxy\";\nimport jsonrpc from \"../lib/jsonrpc\";\n\nconst interfaces = {\n  \"*\": [\"hello\"],\n  math: [\"add\"]\n};\n\nconst implementations = {\n  \"*\": {\n    hello(name) {\n      return new Promise((resolve) => {\n        setTimeout(() => resolve(`hello ${name}`), 1);\n      });\n    }\n  },\n  math: {\n    add: (x, y) => x + y\n  }\n};\n\ndescribe(\"IsoProxy\", () => {\n\n  let proxy = null;\n\n  describe(\"server\", () => {\n\n    beforeEach(() => {\n      proxy = new IsoProxy({root: \"/api\", isServer: true});\n    });\n\n    it(\"Basic workflow with #setInterfaces(), #setImplementaions(), and .api\", (done) => {\n      // no api\n      assert(!proxy.api[\"*\"]);\n      // register interfaces\n      proxy.setInterfaces(interfaces);\n      assert(proxy.api[\"*\"]);\n      assert(proxy.api[\"*\"].hello);\n      // but not implemented\n      assert.throws(() => {\n        proxy.api[\"*\"].hello(\"world\");\n      });\n      // register implementations\n      proxy.setImplementations(implementations);\n      // now implemented\n      assert.doesNotThrow(() => {\n        proxy.api[\"*\"].hello(\"world\");\n      });\n      // return value is just a Promise.\n      proxy.api[\"*\"].hello(\"world\").then((result) => {\n        assert(result === \"hello world\");\n        // with co\n        co(function *() {\n          let result = yield proxy.api.math.add(1, 2);\n          assert(result === 3);\n          done();\n        });\n      });\n    });\n\n    it(\"traverse .routes\", () => {\n      proxy.setInterfaces(interfaces);\n      proxy.setImplementations(implementations);\n      let count = 0;\n      for (let urlPath in proxy.routes) {\n        count++;\n        assert([\"/api/*\", \"/api/math\"].indexOf(urlPath) !== -1);\n        let processJsonrpcRequest = proxy.routes[urlPath];\n        assert(processJsonrpcRequest);\n      }\n      assert(count === 2);\n    });\n\n    it(\"match path with .routes\", (done) => {\n      proxy.setInterfaces(interfaces);\n      proxy.setImplementations(implementations);\n      const processJsonrpcRequest = proxy.routes[\"/api/math\"];\n      assert(processJsonrpcRequest);\n      co(function *() {\n        var body = jsonrpc.createRequest(\"add\", [1, 2]);\n        var answer = jsonrpc.createResponse(null, 3);\n        const result = yield processJsonrpcRequest(body);\n        assert.deepEqual(answer, result);\n        done();\n      });\n    });\n\n  });\n\n});\n"
+  },
+  {
+    "kind": "testDescribe",
+    "static": true,
+    "variation": null,
+    "name": "describe0",
+    "testId": 0,
+    "memberof": "test/isoproxy-spec.js",
+    "testDepth": 0,
+    "longname": "test/isoproxy-spec.js~describe0",
+    "access": null,
+    "description": "IsoProxy",
+    "lineNumber": 24
+  },
+  {
+    "kind": "testDescribe",
+    "static": true,
+    "variation": null,
+    "name": "describe1",
+    "testId": 1,
+    "memberof": "test/isoproxy-spec.js~describe0",
+    "testDepth": 1,
+    "longname": "test/isoproxy-spec.js~describe0.describe1",
+    "access": null,
+    "description": "server",
+    "lineNumber": 28
+  },
+  {
+    "kind": "testIt",
+    "static": true,
+    "variation": null,
+    "name": "it2",
+    "testId": 2,
+    "memberof": "test/isoproxy-spec.js~describe0.describe1",
+    "testDepth": 2,
+    "longname": "test/isoproxy-spec.js~describe0.describe1.it2",
+    "access": null,
+    "description": "Basic workflow with #setInterfaces(), #setImplementaions(), and .api",
+    "lineNumber": 34
+  },
+  {
+    "kind": "testIt",
+    "static": true,
+    "variation": null,
+    "name": "it3",
+    "testId": 3,
+    "memberof": "test/isoproxy-spec.js~describe0.describe1",
+    "testDepth": 2,
+    "longname": "test/isoproxy-spec.js~describe0.describe1.it3",
+    "access": null,
+    "description": "traverse .routes",
+    "lineNumber": 63
+  },
+  {
+    "kind": "testIt",
+    "static": true,
+    "variation": null,
+    "name": "it4",
+    "testId": 4,
+    "memberof": "test/isoproxy-spec.js~describe0.describe1",
+    "testDepth": 2,
+    "longname": "test/isoproxy-spec.js~describe0.describe1.it4",
+    "access": null,
+    "description": "match path with .routes",
+    "lineNumber": 76
+  }
+]

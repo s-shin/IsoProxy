@@ -1,0 +1,554 @@
+{
+  "type": "Program",
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "id": {
+            "type": "Identifier",
+            "name": "fetch",
+            "range": [
+              55,
+              60
+            ],
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 4
+              },
+              "end": {
+                "line": 5,
+                "column": 9
+              }
+            }
+          },
+          "init": null,
+          "range": [
+            55,
+            60
+          ],
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 4
+            },
+            "end": {
+              "line": 5,
+              "column": 9
+            }
+          }
+        }
+      ],
+      "kind": "var",
+      "range": [
+        51,
+        61
+      ],
+      "loc": {
+        "start": {
+          "line": 5,
+          "column": 0
+        },
+        "end": {
+          "line": 5,
+          "column": 10
+        }
+      },
+      "leadingComments": [
+        {
+          "type": "Block",
+          "value": "*\n * WHATWG fetch polyfill for client side.\n ",
+          "range": [
+            0,
+            49
+          ],
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 3,
+              "column": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "IfStatement",
+      "test": {
+        "type": "BinaryExpression",
+        "operator": "!==",
+        "left": {
+          "type": "UnaryExpression",
+          "operator": "typeof",
+          "argument": {
+            "type": "Identifier",
+            "name": "window",
+            "range": [
+              74,
+              80
+            ],
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 11
+              },
+              "end": {
+                "line": 7,
+                "column": 17
+              }
+            }
+          },
+          "prefix": true,
+          "range": [
+            67,
+            80
+          ],
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 4
+            },
+            "end": {
+              "line": 7,
+              "column": 17
+            }
+          }
+        },
+        "right": {
+          "type": "Literal",
+          "value": "undefined",
+          "raw": "\"undefined\"",
+          "range": [
+            85,
+            96
+          ],
+          "loc": {
+            "start": {
+              "line": 7,
+              "column": 22
+            },
+            "end": {
+              "line": 7,
+              "column": 33
+            }
+          }
+        },
+        "range": [
+          67,
+          96
+        ],
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 4
+          },
+          "end": {
+            "line": 7,
+            "column": 33
+          }
+        }
+      },
+      "consequent": {
+        "type": "BlockStatement",
+        "body": [
+          {
+            "type": "IfStatement",
+            "test": {
+              "type": "UnaryExpression",
+              "operator": "!",
+              "argument": {
+                "type": "MemberExpression",
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "name": "window",
+                  "range": [
+                    107,
+                    113
+                  ],
+                  "loc": {
+                    "start": {
+                      "line": 8,
+                      "column": 7
+                    },
+                    "end": {
+                      "line": 8,
+                      "column": 13
+                    }
+                  }
+                },
+                "property": {
+                  "type": "Identifier",
+                  "name": "fetch",
+                  "range": [
+                    114,
+                    119
+                  ],
+                  "loc": {
+                    "start": {
+                      "line": 8,
+                      "column": 14
+                    },
+                    "end": {
+                      "line": 8,
+                      "column": 19
+                    }
+                  }
+                },
+                "range": [
+                  107,
+                  119
+                ],
+                "loc": {
+                  "start": {
+                    "line": 8,
+                    "column": 7
+                  },
+                  "end": {
+                    "line": 8,
+                    "column": 19
+                  }
+                }
+              },
+              "prefix": true,
+              "range": [
+                106,
+                119
+              ],
+              "loc": {
+                "start": {
+                  "line": 8,
+                  "column": 6
+                },
+                "end": {
+                  "line": 8,
+                  "column": 19
+                }
+              }
+            },
+            "consequent": {
+              "type": "BlockStatement",
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "expression": {
+                    "type": "CallExpression",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "require",
+                      "range": [
+                        127,
+                        134
+                      ],
+                      "loc": {
+                        "start": {
+                          "line": 9,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 9,
+                          "column": 11
+                        }
+                      }
+                    },
+                    "arguments": [
+                      {
+                        "type": "Literal",
+                        "value": "whatwg-fetch",
+                        "raw": "\"whatwg-fetch\"",
+                        "range": [
+                          135,
+                          149
+                        ],
+                        "loc": {
+                          "start": {
+                            "line": 9,
+                            "column": 12
+                          },
+                          "end": {
+                            "line": 9,
+                            "column": 26
+                          }
+                        }
+                      }
+                    ],
+                    "range": [
+                      127,
+                      150
+                    ],
+                    "loc": {
+                      "start": {
+                        "line": 9,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 9,
+                        "column": 27
+                      }
+                    }
+                  },
+                  "range": [
+                    127,
+                    151
+                  ],
+                  "loc": {
+                    "start": {
+                      "line": 9,
+                      "column": 4
+                    },
+                    "end": {
+                      "line": 9,
+                      "column": 28
+                    }
+                  }
+                }
+              ],
+              "range": [
+                121,
+                155
+              ],
+              "loc": {
+                "start": {
+                  "line": 8,
+                  "column": 21
+                },
+                "end": {
+                  "line": 10,
+                  "column": 3
+                }
+              }
+            },
+            "alternate": null,
+            "range": [
+              102,
+              155
+            ],
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 2
+              },
+              "end": {
+                "line": 10,
+                "column": 3
+              }
+            }
+          },
+          {
+            "type": "ExpressionStatement",
+            "expression": {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "fetch",
+                "range": [
+                  158,
+                  163
+                ],
+                "loc": {
+                  "start": {
+                    "line": 11,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 11,
+                    "column": 7
+                  }
+                }
+              },
+              "right": {
+                "type": "MemberExpression",
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "name": "window",
+                  "range": [
+                    166,
+                    172
+                  ],
+                  "loc": {
+                    "start": {
+                      "line": 11,
+                      "column": 10
+                    },
+                    "end": {
+                      "line": 11,
+                      "column": 16
+                    }
+                  }
+                },
+                "property": {
+                  "type": "Identifier",
+                  "name": "fetch",
+                  "range": [
+                    173,
+                    178
+                  ],
+                  "loc": {
+                    "start": {
+                      "line": 11,
+                      "column": 17
+                    },
+                    "end": {
+                      "line": 11,
+                      "column": 22
+                    }
+                  }
+                },
+                "range": [
+                  166,
+                  178
+                ],
+                "loc": {
+                  "start": {
+                    "line": 11,
+                    "column": 10
+                  },
+                  "end": {
+                    "line": 11,
+                    "column": 22
+                  }
+                }
+              },
+              "range": [
+                158,
+                178
+              ],
+              "loc": {
+                "start": {
+                  "line": 11,
+                  "column": 2
+                },
+                "end": {
+                  "line": 11,
+                  "column": 22
+                }
+              }
+            },
+            "range": [
+              158,
+              179
+            ],
+            "loc": {
+              "start": {
+                "line": 11,
+                "column": 2
+              },
+              "end": {
+                "line": 11,
+                "column": 23
+              }
+            }
+          }
+        ],
+        "range": [
+          98,
+          181
+        ],
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 35
+          },
+          "end": {
+            "line": 12,
+            "column": 1
+          }
+        }
+      },
+      "alternate": null,
+      "range": [
+        63,
+        181
+      ],
+      "loc": {
+        "start": {
+          "line": 7,
+          "column": 0
+        },
+        "end": {
+          "line": 12,
+          "column": 1
+        }
+      }
+    },
+    {
+      "type": "ExportDefaultDeclaration",
+      "declaration": {
+        "type": "Identifier",
+        "name": "fetch",
+        "range": [
+          198,
+          203
+        ],
+        "loc": {
+          "start": {
+            "line": 14,
+            "column": 15
+          },
+          "end": {
+            "line": 14,
+            "column": 20
+          }
+        },
+        "leadingComments": [],
+        "trailingComments": []
+      },
+      "range": [
+        183,
+        204
+      ],
+      "loc": {
+        "start": {
+          "line": 14,
+          "column": 0
+        },
+        "end": {
+          "line": 14,
+          "column": 21
+        }
+      }
+    }
+  ],
+  "sourceType": "module",
+  "range": [
+    51,
+    204
+  ],
+  "loc": {
+    "start": {
+      "line": 5,
+      "column": 0
+    },
+    "end": {
+      "line": 14,
+      "column": 21
+    }
+  },
+  "comments": [
+    {
+      "type": "Block",
+      "value": "*\n * WHATWG fetch polyfill for client side.\n ",
+      "range": [
+        0,
+        49
+      ],
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 3,
+          "column": 3
+        }
+      }
+    }
+  ]
+}

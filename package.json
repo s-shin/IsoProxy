@@ -13,7 +13,8 @@
   "main": "lib/isoproxy.js",
   "scripts": {
     "test": "mocha --compilers js:espower-babel/guess test/**/*-spec.js",
-    "build": "babel src --out-dir lib"
+    "build": "babel src --out-dir lib",
+    "docs": "esdoc -c esdoc.json"
   },
   "author": "Shintaro Seki <s2pch.luck@gmail.com>",
   "license": "MIT",
@@ -21,6 +22,7 @@
     "babel": "^5.4.3",
     "babel-eslint": "^3.1.1",
     "co": "^4.5.4",
+    "esdoc": "^0.1.1",
     "eslint": "^0.21.0",
     "espower-babel": "^3.1.1",
     "mocha": "^2.2.5",

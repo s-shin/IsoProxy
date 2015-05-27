@@ -20,7 +20,7 @@ and the motivation is the same as in Fetchr.
 npm install isoproxy --save
 ```
 
-## Setup
+## Usage
 
 Define isomorphic API:
 
@@ -33,17 +33,16 @@ var proxy = new IsoProxy({
   isServer: (typeof window === "undefined")
 });
 
-proxy.methods.hello = function(name) {
-  return new Promise(function(resolve) {
-    setTimeout(function() {
-      resolve("hello " + name);
-    }, 100);
-  });
-};
+proxy.setInterfaces({
+  math: ["add", "sub"]
+});
 
-proxy.ns("math").methods.add = function(a, b) {
-  return a + b;
-}
+proxy.setImplementations({
+  math: {
+    add: function(x, y) { return x + y; },
+    sub: function(x, y) { return x - y; }
+  }
+});
 
 module.exports = proxy;
 ```
@@ -59,7 +58,8 @@ var proxy = require("./proxy");
 var app = express();
 app.use(bodyParser.json());
 
-proxy.traverse(function(urlPath, processJsonrpcRequest) {
+Object.keys(proxy.routes).forEach(function(urlPath) {
+  var processJsonrpcRequest = proxy.routes[urlPath];
   app.post(urlPath, function(req, res) {
     processJsonrpcRequest(req.body).then(function(jsonrpcResponse) {
       res.send(jsonrpcResponse);
@@ -67,10 +67,11 @@ proxy.traverse(function(urlPath, processJsonrpcRequest) {
   });
 });
 
-app.get("/hello/:name", function(req, res) {
-  proxy.api.hello(req.params.name).then(function(result) {
-    res.send(result);
-  });
+app.get("/add/:x/:y", function(req, res) {
+  proxy.api.math.add(+req.params.x, +req.params.y)
+    .then(function(result) {
+      res.send(""+result);
+    });
 });
 ```
 
@@ -80,19 +81,30 @@ Client side (browserify):
 // client.js
 var proxy = require("./proxy");
 
-proxy.api.hello("world").then(function(result) {
-  console.log(result); // => hello world
+proxy.api.math.add(1, 2).then(function(r) {
+  console.log(r); // => 3
 });
 
-proxy.ns("math").api.add(1, 2).then(function(result) {
-  console.log(result); // => 3
+proxy.api.math.sub(1, 2).then(function(r) {
+  console.log(r); // => -1
 });
 ```
+
+## Why interfaces and implementations are separated?
+
+It is because the client side need not know implementation details.
+In other words, implementations can be hidden from users.
+
+Please see [this example](example/koa-es6) for more information.
 
 ## Examples
 
 * [ES5, express, and browserify](examples/express/)
 * [ES6, koa, and babelify](examples/koa-es6/)
+
+## Supported Browsers
+
+Above Internet Explorer 9 and other modern browsers.
 
 ## License
 

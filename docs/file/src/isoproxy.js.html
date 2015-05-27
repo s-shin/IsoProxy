@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">src/isoproxy.js | API Document</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  
+  
+</head>
+<body class="layout-container">
+
+<header>
+  <a href="./">Home</a>
+  <a href="identifiers.html">Identifier</a>
+  <a href="source.html">Source</a>
+  <a href="test.html" data-ice="testLink">Test</a>
+  <a data-ice="repoURL" href="https://github.com/s-shin/isoproxy.git" class="repo-url-github">Repository</a>
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+</header>
+
+<nav class="navigation" data-ice="nav"><div data-ice="classWrap">
+  <h2>Class</h2>
+  <ul>
+    
+  <li data-ice="classDoc"><span><a href="class/src/isoproxy.js~IsoProxy.html">IsoProxy</a></span></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">src/isoproxy.js</h1>
+<pre class="source-code line-number"><code class="prettyprint linenums" data-ice="content">import _ from &quot;lodash&quot;;
+import jsonrpc from &quot;./jsonrpc&quot;;
+import fetch from &quot;./fetch&quot;;
+
+/**
+ * Isomorphic API Proxy
+ */
+export default class IsoProxy {
+
+  /**
+   * @param {Object} opts
+   * @param {string} opts.root Root url path, that is beginning with &quot;/&quot; and NOT end with &quot;/&quot;.
+   * @param {boolean} opts.isServer Server mode or not.
+   */
+  constructor(opts = {}) {
+    const {root = &quot;&quot;, isServer = true} = opts;
+    /** @private */
+    this.root = root;
+    /** @private */
+    this.isServer = isServer;
+    /** @private */
+    this.interfaces = {};
+    /** @private */
+    this.implementations = {};
+    /**
+     * @public
+     * @type {Object}
+     * @example
+     * {math: {add: function() { isomorphic_blackbox(); }}}
+     */
+    this.api = {};
+    /**
+     * @public
+     * @type {Object}
+     * @example
+     * {&quot;/api/math&quot;: function processJsonrpcRequest(jsonrpcRequest) { ... }}
+     */
+    this.routes = {};
+  }
+
+  /**
+   * @public
+   * @param {Object} interfaces
+   */
+  setInterfaces(interfaces) {
+    this.interfaces = interfaces;
+    this.updateApi();
+    this.updateRoutes();
+  }
+
+  /**
+   * @public
+   * @param {Object} implementations
+   */
+  setImplementations(implementations) {
+    if (!this.isServer) {
+      // Implementations are required only in server mode.
+      return;
+    }
+    this.implementations = implementations;
+    this.updateApi();
+    this.updateRoutes();
+  }
+
+  /**
+   * @access private
+   */
+  updateApi() {
+    return this.isServer ? this.updateServerApi() : this.updateClientApi();
+  }
+
+  /**
+   * @private
+   */
+  preprocessMethodDefinitions(methodDefinitions) {
+    if (_.isArray(methodDefinitions)) {
+      // [&quot;add&quot;, &quot;sub&quot;] =&gt; {add: {}, sub: {}}
+      methodDefinitions = _.reduce(methodDefinitions, (r, methodName) =&gt; {
+        r[methodName] = {}; // no options
+        return r;
+      }, {});
+    }
+    return methodDefinitions;
+  }
+
+  /**
+   * @private
+   */
+  updateServerApi() {
+    this.api = {};
+    _.forEach(this.interfaces, (methodDefinitions, ns) =&gt; {
+      methodDefinitions = this.preprocessMethodDefinitions(methodDefinitions);
+      this.api[ns] = {};
+      _.forEach(methodDefinitions, (methodOpts, methodName) =&gt; {
+        const impl = _.get(this.implementations, [ns, methodName]);
+        if (impl) {
+          // wrap with Promise.
+          this.api[ns][methodName] = (...args) =&gt; {
+            return Promise.resolve(impl(...args));
+          };
+        } else {
+          // mock method.
+          this.api[ns][methodName] = (...args) =&gt; {
+            const argsStr = _.map(args, (p) =&gt; p.toString()).join(&quot;, &quot;);
+            throw new Error(`${ns}.${methodName}(${argsStr}) is called but is not implemented.`);
+          };
+        }
+      });
+    });
+  }
+
+  /**
+   * @private
+   */
+  updateClientApi() {
+    this.api = {};
+    _.forEach(this.interfaces, (methodDefinitions, ns) =&gt; {
+      methodDefinitions = this.preprocessMethodDefinitions(methodDefinitions);
+      this.api[ns] = {};
+      _.forEach(methodDefinitions, (methodOpts, methodName) =&gt; {
+        this.api[ns][methodName] = (...params) =&gt; {
+          return new Promise((resolve, reject) =&gt; {
+            // RPC
+            fetch(this.createPath(ns), {
+              method: &quot;post&quot;,
+              headers: {
+                &quot;Accept&quot;: &quot;application/json&quot;,
+                &quot;Content-Type&quot;: &quot;application/json&quot;
+              },
+              body: JSON.stringify(jsonrpc.createRequest(methodName, params))
+            })
+            .then((response) =&gt; {
+              if (!response.ok) {
+                reject(response.error());
+                return null;
+              }
+              return response.json();
+            })
+            .then((jsonrpcResponse) =&gt; {
+              if (jsonrpcResponse.error) {
+                return reject(jsonrpcResponse.error);
+              }
+              resolve(jsonrpcResponse.result);
+            })
+            .catch((error) =&gt; {
+              reject(error);
+            });
+          });
+        };
+      });
+    });
+  }
+
+  /**
+   * @private
+   */
+  updateRoutes() {
+    _.forEach(this.implementations, (methods, ns) =&gt; {
+      this.routes[this.createPath(ns)] = (jsonrpcRequest) =&gt; {
+        return new Promise((resolve) =&gt; {
+          Promise
+            .resolve(methods[jsonrpcRequest.method](...jsonrpcRequest.params))
+            .then((result) =&gt; {
+              resolve(jsonrpc.createResponse(null, result));
+            })
+            .catch((error) =&gt; {
+              resolve(jsonrpc.createResponse(error));
+            });
+        });
+      };
+    });
+  }
+
+  /**
+   * @private
+   */
+  createPath(ns) {
+    return `${this.root}/${ns}`;
+  }
+
+}
+</code></pre>
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(0.1.1)</span></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+</body>
+</html>

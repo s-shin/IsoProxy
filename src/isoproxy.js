@@ -14,24 +14,33 @@ export default class IsoProxy {
    */
   constructor(opts = {}) {
     const {root = "", isServer = true} = opts;
+    /** @private */
     this.root = root;
+    /** @private */
     this.isServer = isServer;
+    /** @private */
     this.interfaces = {};
+    /** @private */
     this.implementations = {};
     /**
-     * @access public
+     * @public
+     * @type {Object}
+     * @example
+     * {math: {add: function() { isomorphic_blackbox(); }}}
      */
     this.api = {};
     /**
-     * @access public
-     * @param {urlPath: function(jsonrpcRequest: Object): Promise): null} callback
+     * @public
+     * @type {Object}
+     * @example
+     * {"/api/math": function processJsonrpcRequest(jsonrpcRequest) { ... }}
      */
     this.routes = {};
   }
 
   /**
-   * @access public
-   * @param {Object} {namespace: {methodName: function}}
+   * @public
+   * @param {Object} interfaces
    */
   setInterfaces(interfaces) {
     this.interfaces = interfaces;
@@ -40,7 +49,8 @@ export default class IsoProxy {
   }
 
   /**
-   * @access public
+   * @public
+   * @param {Object} implementations
    */
   setImplementations(implementations) {
     if (!this.isServer) {
@@ -60,7 +70,7 @@ export default class IsoProxy {
   }
 
   /**
-   * @access private
+   * @private
    */
   preprocessMethodDefinitions(methodDefinitions) {
     if (_.isArray(methodDefinitions)) {
@@ -74,7 +84,7 @@ export default class IsoProxy {
   }
 
   /**
-   * @access private
+   * @private
    */
   updateServerApi() {
     this.api = {};
@@ -100,7 +110,7 @@ export default class IsoProxy {
   }
 
   /**
-   * @access private
+   * @private
    */
   updateClientApi() {
     this.api = {};
@@ -142,7 +152,7 @@ export default class IsoProxy {
   }
 
   /**
-   * @access private
+   * @private
    */
   updateRoutes() {
     _.forEach(this.implementations, (methods, ns) => {
@@ -162,7 +172,7 @@ export default class IsoProxy {
   }
 
   /**
-   * @access private
+   * @private
    */
   createPath(ns) {
     return `${this.root}/${ns}`;
