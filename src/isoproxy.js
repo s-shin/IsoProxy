@@ -44,7 +44,8 @@ export default class IsoProxy {
    */
   setImplementations(implementations) {
     if (!this.isServer) {
-      throw new Error("Implementations are required only in server mode.");
+      // Implementations are required only in server mode.
+      return;
     }
     this.implementations = implementations;
     this.updateApi();
