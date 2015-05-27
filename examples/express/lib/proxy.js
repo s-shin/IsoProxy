@@ -5,17 +5,19 @@ var proxy = new IsoProxy({
   isServer: (typeof window === "undefined")
 });
 
-proxy.methods = {
-  hello: function(name) {
-    return "hello " + name;
-  },
-  asyncHello: function(name) {
-    return new Promise(function(resolve) {
-      setTimeout(function() {
-        resolve("hello " + name);
-      }, 100);
-    });
+proxy.setInterfaces({
+  math: ["add", "sub"]
+});
+
+proxy.setImplementations({
+  math: {
+    add: function(x, y) {
+      return new Promise(function(resolve) { resolve(x + y); });
+    },
+    sub: function(x, y) {
+      return this.add(x, -y);
+    }
   }
-};
+});
 
 module.exports = proxy;

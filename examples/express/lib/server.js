@@ -10,7 +10,8 @@ app.use(bodyParser.json());
 app.use(morgan("combined"));
 app.use(express.static(path.join(__dirname, "../public")));
 
-proxy.traverse(function(urlPath, processJsonrpcRequest) {
+Object.keys(proxy.routes).forEach(function(urlPath) {
+  var processJsonrpcRequest = proxy.routes[urlPath];
   app.post(urlPath, function(req, res) {
     processJsonrpcRequest(req.body).then(function(jsonrpcResponse) {
       res.send(jsonrpcResponse);
@@ -18,10 +19,11 @@ proxy.traverse(function(urlPath, processJsonrpcRequest) {
   });
 });
 
-app.get("/hello/:name", function(req, res) {
-  proxy.api.hello(req.params.name).then(function(result) {
-    res.send(result);
-  });
+app.get("/add/:x/:y", function(req, res) {
+  proxy.api.math.add(+req.params.x, +req.params.y)
+    .then(function(result) {
+      res.send(""+result);
+    });
 });
 
 var port = process.env.PORT || 3000;

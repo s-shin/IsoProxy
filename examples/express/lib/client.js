@@ -1,19 +1,10 @@
 var proxy = require("./proxy");
 
 window.app = {
-  hello1: function() {
-    this.show(proxy.api.hello("world"));
+  ex1() {
+    proxy.api.math.add(1, 2).then(function(r){ console.log(r); }, function(err) { console.error(err); });
   },
-  hello2: function() {
-    this.show(proxy.api.asyncHello("world"));
-  },
-  show(response) {
-    response
-    .then(function(result) {
-      console.log("Result: " + result);
-    })
-    .catch(function(error) {
-      console.log("Error: " + error);
-    });
+  ex2() {
+    proxy.api.math.sub(1, 2).then(function(r){ console.log(r); }, function(err) { console.error(err); });
   }
 };

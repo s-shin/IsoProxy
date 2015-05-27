@@ -1,19 +1,14 @@
-import proxy from "./proxy";
+import proxy from "./app/proxy";
+import apiInterfaces from "./api/interfaces";
+
+proxy.setInterfaces(apiInterfaces);
+const api = proxy.api;
 
 window.app = {
-  hello1() {
-    this.show(proxy.api.hello("world"));
+  ex1() {
+    api["*"].hello("world").then((r) => console.log(r), (err) => console.error(err));
   },
-  hello2() {
-    this.show(proxy.ns("math").api.add(1, 2));
-  },
-  show(response) {
-    response
-    .then((result) => {
-      console.log("Result: " + result);
-    })
-    .catch((error) => {
-      console.log("Error: " + error);
-    });
+  ex2() {
+    api.math.add(1, 2).then((r) => console.log(r), (err) => console.error(err));
   }
 };
