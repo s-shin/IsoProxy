@@ -1,24 +1,25 @@
 import assert from "power-assert";
-import IsoProxy from "../src/isoproxy";
-import jsonrpc from "../src/jsonrpc";
+import co from "co";
+import IsoProxy from "../lib/isoproxy";
+import jsonrpc from "../lib/jsonrpc";
 
-function defineHello(proxy) {
-  proxy.methods.hello = (name) => `hello ${name}`;
-}
+const interfaces = {
+  "*": ["hello"],
+  math: ["add"]
+};
 
-function defineAsyncHello(proxy) {
-  proxy.methods.hello = (name) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(`hello ${name}`);
-      }, 1);
-    });
-  };
-}
-
-function defineMathAdd(proxy) {
-  proxy.ns("math").methods.add = (x, y) => x + y;
-}
+const implementations = {
+  "*": {
+    hello(name) {
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(`hello ${name}`), 1);
+      });
+    }
+  },
+  math: {
+    add: (x, y) => x + y
+  }
+};
 
 describe("IsoProxy", () => {
 
@@ -30,65 +31,60 @@ describe("IsoProxy", () => {
       proxy = new IsoProxy({root: "/api", isServer: true});
     });
 
-    it("simple", (done) => {
-      defineHello(proxy);
-      const api = proxy.api;
-      api.hello("world").then((result) => {
+    it("Basic workflow with #setInterfaces(), #setImplementaions(), and .api", (done) => {
+      // no api
+      assert(!proxy.api["*"]);
+      // register interfaces
+      proxy.setInterfaces(interfaces);
+      assert(proxy.api["*"]);
+      assert(proxy.api["*"].hello);
+      // but not implemented
+      assert.throws(() => {
+        proxy.api["*"].hello("world");
+      });
+      // register implementations
+      proxy.setImplementations(implementations);
+      // now implemented
+      assert.doesNotThrow(() => {
+        proxy.api["*"].hello("world");
+      });
+      // return value is just a Promise.
+      proxy.api["*"].hello("world").then((result) => {
         assert(result === "hello world");
-        done();
-      });
-    });
-
-    it("async", (done) => {
-      defineAsyncHello(proxy);
-      const api = proxy.api;
-      api.hello("world").then((result) => {
-        assert(result === "hello world");
-        done();
-      });
-    });
-
-    it("namespace", (done) => {
-      defineMathAdd(proxy);
-      const api = proxy.ns("math").api;
-      api.add(1, 2).then((result) => {
-        assert(result === 3);
-        done();
-      });
-    });
-
-    describe("#traverse()", () => {
-
-      it("simple", (done) => {
-        defineHello(proxy);
-        proxy.traverse((urlPath, processJsonrpcRequest) => {
-          assert(urlPath === "/api/hello");
-          processJsonrpcRequest(jsonrpc.createRequest("hello", ["world"]))
-          .then((result) => {
-            assert.deepEqual(
-              jsonrpc.createResponse(null, "hello world"),
-              result
-            );
-            done();
-          });
+        // with co
+        co(function *() {
+          let result = yield proxy.api.math.add(1, 2);
+          assert(result === 3);
+          done();
         });
       });
+    });
 
-      it("namespace", (done) => {
-        defineMathAdd(proxy);
-        proxy.traverse((urlPath, processJsonrpcRequest) => {
-          assert(urlPath === "/api/math/add");
-          processJsonrpcRequest(jsonrpc.createRequest("add", [1, 2]))
-          .then((result) => {
-            assert.deepEqual(
-              jsonrpc.createResponse(null, 3),
-              result
-            );
-            done();
-          });
-        });
+    it("traverse .routes", () => {
+      proxy.setInterfaces(interfaces);
+      proxy.setImplementations(implementations);
+      let count = 0;
+      for (let urlPath in proxy.routes) {
+        count++;
+        assert(["/api/*", "/api/math"].indexOf(urlPath) !== -1);
+        let processJsonrpcRequest = proxy.routes[urlPath];
+        assert(processJsonrpcRequest);
+      }
+      assert(count === 2);
+    });
+
+    it("match path with .routes", (done) => {
+      proxy.setInterfaces(interfaces);
+      proxy.setImplementations(implementations);
+      const processJsonrpcRequest = proxy.routes["/api/math"];
+      assert(processJsonrpcRequest);
+      co(function *() {
+        var body = jsonrpc.createRequest("add", [1, 2]);
+        var answer = jsonrpc.createResponse(null, 3);
+        const result = yield processJsonrpcRequest(body);
+        assert.deepEqual(answer, result);
+        done();
       });
-
     });
 
   });

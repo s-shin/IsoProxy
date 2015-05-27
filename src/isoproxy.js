@@ -1,3 +1,4 @@
+import _ from "lodash";
 import jsonrpc from "./jsonrpc";
 import fetch from "./fetch";
 
@@ -5,21 +6,6 @@ import fetch from "./fetch";
  * Isomorphic API Proxy
  */
 export default class IsoProxy {
-
-  /**
-   * API method container.
-   *
-   * @access public
-   * @type {Object}
-   * @example
-   * proxy.method.add = (x, y) => x + y;
-   */
-  methods = {};
-
-  /**
-   * @access private
-   */
-  children = {};
 
   /**
    * @param {Object} opts
@@ -30,107 +16,145 @@ export default class IsoProxy {
     const {root = "", isServer = true} = opts;
     this.root = root;
     this.isServer = isServer;
+    this.interfaces = {};
+    this.implementations = {};
+    /**
+     * @access public
+     */
+    this.api = {};
+    /**
+     * @access public
+     * @param {urlPath: function(jsonrpcRequest: Object): Promise): null} callback
+     */
+    this.routes = {};
   }
 
   /**
    * @access public
-   * @param {string} ns Namespace.
-   * @return {IsoProxy} Child proxy instance.
+   * @param {Object} {namespace: {methodName: function}}
    */
-  ns(ns) {
-    if (!this.children[ns]) {
-      this.children[ns] = new IsoProxy({
-        root: this.createPath(ns),
-        isServer: this.isServer
-      });
+  setInterfaces(interfaces) {
+    this.interfaces = interfaces;
+    this.updateApi();
+    this.updateRoutes();
+  }
+
+  /**
+   * @access public
+   */
+  setImplementations(implementations) {
+    if (!this.isServer) {
+      throw new Error("Implementations are required only in server mode.");
     }
-    return this.children[ns];
+    this.implementations = implementations;
+    this.updateApi();
+    this.updateRoutes();
   }
 
   /**
-   * Traverse all methods for routing in server.
-   *
-   * @access public
-   * @param {function(urlPath: string, processJsonrpcRequest: function(jsonrpcRequest: Object): Promise): null} callback
+   * @access private
    */
-  traverse(callback) {
-    const callCallback = (path, method) => {
-      callback(path, (jsonrpcRequest) => {
-        console.assert(this.methods[jsonrpcRequest.method] === method);
+  updateApi() {
+    return this.isServer ? this.updateServerApi() : this.updateClientApi();
+  }
+
+  /**
+   * @access private
+   */
+  preprocessMethodDefinitions(methodDefinitions) {
+    if (_.isArray(methodDefinitions)) {
+      // ["add", "sub"] => {add: {}, sub: {}}
+      methodDefinitions = _.reduce(methodDefinitions, (r, methodName) => {
+        r[methodName] = {}; // no options
+        return r;
+      }, {});
+    }
+    return methodDefinitions;
+  }
+
+  /**
+   * @access private
+   */
+  updateServerApi() {
+    this.api = {};
+    _.forEach(this.interfaces, (methodDefinitions, ns) => {
+      methodDefinitions = this.preprocessMethodDefinitions(methodDefinitions);
+      this.api[ns] = {};
+      _.forEach(methodDefinitions, (methodOpts, methodName) => {
+        const impl = _.get(this.implementations, [ns, methodName]);
+        if (impl) {
+          // wrap with Promise.
+          this.api[ns][methodName] = (...args) => {
+            return Promise.resolve(impl(...args));
+          };
+        } else {
+          // mock method.
+          this.api[ns][methodName] = (...args) => {
+            const argsStr = _.map(args, (p) => p.toString()).join(", ");
+            throw new Error(`${ns}.${methodName}(${argsStr}) is called but is not implemented.`);
+          };
+        }
+      });
+    });
+  }
+
+  /**
+   * @access private
+   */
+  updateClientApi() {
+    this.api = {};
+    _.forEach(this.interfaces, (methodDefinitions, ns) => {
+      methodDefinitions = this.preprocessMethodDefinitions(methodDefinitions);
+      this.api[ns] = {};
+      _.forEach(methodDefinitions, (methodOpts, methodName) => {
+        this.api[ns][methodName] = (...params) => {
+          return new Promise((resolve, reject) => {
+            // RPC
+            fetch(this.createPath(ns), {
+              method: "post",
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(jsonrpc.createRequest(methodName, params))
+            })
+            .then((response) => {
+              if (!response.ok) {
+                reject(response.error());
+                return null;
+              }
+              return response.json();
+            })
+            .then((jsonrpcResponse) => {
+              if (jsonrpcResponse.error) {
+                return reject(jsonrpcResponse.error);
+              }
+              resolve(jsonrpcResponse.result);
+            })
+            .catch((error) => {
+              reject(error);
+            });
+          });
+        };
+      });
+    });
+  }
+
+  /**
+   * @access private
+   */
+  updateRoutes() {
+    _.forEach(this.implementations, (methods, ns) => {
+      this.routes[this.createPath(ns)] = (jsonrpcRequest) => {
         return new Promise((resolve) => {
-          Promise.resolve(method(...jsonrpcRequest.params))
-          .then((result) => {
-            resolve(jsonrpc.createResponse(null, result));
-          })
-          .catch((error) => {
-            // resolve() is used because the error is sent to client.
-            resolve(jsonrpc.createResponse(error));
-          });
-        });
-      });
-    };
-    for (let name in this.methods) {
-      callCallback(this.createPath(name), this.methods[name]);
-    }
-    for (let name in this.children) {
-      this.children[name].traverse(callback);
-    }
-  }
-
-  /**
-   * Get isomorphic method collection.
-   *
-   * @access public
-   * @return {Object} Isomorphically wrapped methods not including ones in namespaces.
-   * @example
-   * proxy.methods.add = (x, y) => x + y;
-   * proxy.api; // => {add: (x, y) => { (isomorphic blackbox) }}
-   */
-  get api() {
-    return this.isServer ? this.getServerApi() : this.getClientApi();
-  }
-
-  /**
-   * @access private
-   */
-  getServerApi() {
-    return this.createApi(name => {
-      return (...params) => {
-        // call directly
-        return Promise.resolve(this.methods[name](...params));
-      };
-    });
-  }
-
-  /**
-   * @access private
-   */
-  getClientApi() {
-    return this.createApi(name => {
-      return (...params) => {
-        return new Promise((resolve, reject) => {
-          // RPC
-          fetch(this.createPath(name), {
-            method: "post",
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(jsonrpc.createRequest(name, params))
-          })
-          .then((response) => {
-            if (!response.ok) {
-              reject(response.error());
-              return null;
-            }
-            return response.json();
-          })
-          .then((response) => {
-            if (response.error) {
-              return reject(response.error);
-            }
-            resolve(response.result);
-          });
+          Promise
+            .resolve(methods[jsonrpcRequest.method](...jsonrpcRequest.params))
+            .then((result) => {
+              resolve(jsonrpc.createResponse(null, result));
+            })
+            .catch((error) => {
+              resolve(jsonrpc.createResponse(error));
+            });
         });
       };
     });
@@ -139,19 +163,8 @@ export default class IsoProxy {
   /**
    * @access private
    */
-  createPath(name) {
-    return `${this.root}/${name}`;
-  }
-
-  /**
-   * @access private
-   */
-  createApi(createMethod) {
-    let api = {};
-    for (let name in this.methods) {
-      api[name] = createMethod(name);
-    }
-    return api;
+  createPath(ns) {
+    return `${this.root}/${ns}`;
   }
 
 }

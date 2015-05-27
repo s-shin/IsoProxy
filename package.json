@@ -13,13 +13,14 @@
   "main": "lib/isoproxy.js",
   "scripts": {
     "test": "mocha --compilers js:espower-babel/guess test/**/*-spec.js",
-    "build": "babel src --out-dir lib --stage 0 --optional runtime"
+    "build": "babel src --out-dir lib"
   },
   "author": "Shintaro Seki <s2pch.luck@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "babel": "^5.4.3",
     "babel-eslint": "^3.1.1",
+    "co": "^4.5.4",
     "eslint": "^0.21.0",
     "espower-babel": "^3.1.1",
     "mocha": "^2.2.5",
@@ -27,6 +28,7 @@
   },
   "dependencies": {
     "babel-runtime": "^5.4.3",
+    "lodash": "^3.9.2",
     "whatwg-fetch": "^0.8.1"
   },
   "files": [
