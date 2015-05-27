@@ -102,6 +102,11 @@ Please see [this example](example/koa-es6) for more information.
 * [ES5, express, and browserify](examples/express/)
 * [ES6, koa, and babelify](examples/koa-es6/)
 
+## Links
+
+* [koa-isoproxy](https://github.com/s-shin/koa-isoproxy)
+  * koa middleware for IsoProxy.
+
 ## Supported Browsers
 
 Above Internet Explorer 9 and other modern browsers.
