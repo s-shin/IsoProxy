@@ -95,7 +95,7 @@ proxy.api.math.sub(1, 2).then(function(r) {
 It is because the client side need not know implementation details.
 In other words, implementations can be hidden from users.
 
-Please see [this example](example/koa-es6) for more information.
+Please see [this example](examples/koa-es6) for more information.
 
 ## Examples
 
@@ -106,6 +106,8 @@ Please see [this example](example/koa-es6) for more information.
 
 * [koa-isoproxy](https://github.com/s-shin/koa-isoproxy)
   * koa middleware for IsoProxy.
+* [express-isoproxy](https://github.com/s-shin/express-isoproxy)
+  * express middleware for IsoProxy.
 
 ## Supported Browsers
 
